@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+.vercel/
+.env
+.env.local
+.env*.local
+.genlayer/
+*.log
+__pycache__/
+.DS_Store
+*.tsbuildinfo

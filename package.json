@@ -1,0 +1,27 @@
+{
+  "name": "glossa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Adjudication layer for rare-language translation work, on GenLayer.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "deploy:contract": "node scripts/deploy.mjs",
+    "seed": "node scripts/seed.mjs",
+    "lint:contract": "genvm-lint check contracts/glossa.py"
+  },
+  "dependencies": {
+    "genlayer-js": "1.1.8",
+    "next": "15.5.4",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "19.0.2",
+    "@types/react-dom": "19.0.2",
+    "genlayer": "0.39.2",
+    "typescript": "5.7.2"
+  }
+}
