@@ -36,6 +36,10 @@ const STEPS: [string, string][] = [
     "The appeal is a second panel, not a second opinion",
     "Either party can post a bond and have the work re-judged from the same material by a freshly drawn set of validators. Move the verdict your way and the bond comes back; fail and it goes to the other side. That is what an agency charges for, without the agency.",
   ],
+  [
+    "The verdict is reached before the money moves",
+    "Adjudication decides the split but leaves it in escrow, and only a release call pays it out. An appeal has to be possible while the tokens are still here: a second panel cannot redistribute what has already landed in someone's wallet, and nothing can pull it back. Anyone may call the release, so neither party can strand the other's money by never showing up.",
+  ],
 ];
 
 export default function About() {

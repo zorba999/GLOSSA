@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { findJury, type JuryRecord } from "@/lib/glossa";
 import { useWallet } from "@/lib/wallet";
 import { IS_STUDIO } from "@/lib/chains";
+import { short } from "@/lib/format";
 
 /**
  * The panel that decided, read back off chain: who led, who validated, which
@@ -51,8 +52,16 @@ export default function JuryPanel({ jobId }: { jobId: number }) {
             <div className="micro" style={{ opacity: 0.7 }}>
               {j.role === "leader" ? "LEADER" : `VALIDATOR ${String(i).padStart(2, "0")}`}
             </div>
-            <div className="mono" style={{ fontSize: 11, lineHeight: 1.4, wordBreak: "break-word" }}>
-              {j.model}
+            <div>
+              <div className="mono" style={{ fontSize: 11, lineHeight: 1.4, wordBreak: "break-word" }}>
+                {j.model}
+              </div>
+              {j.address && (
+                <div className="mono" style={{ fontSize: 9.5, opacity: 0.55, marginTop: 4 }}>
+                  {short(j.address)}
+                  {j.stake ? ` · stake ${j.stake}` : ""}
+                </div>
+              )}
             </div>
             <div className="micro" style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <span className="vote-dot" style={{ opacity: j.vote === "agree" ? 1 : 0.35 }} />

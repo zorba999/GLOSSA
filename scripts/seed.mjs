@@ -128,9 +128,12 @@ async function rpc(fn, attempts = 6) {
       return await fn();
     } catch (e) {
       const msg = String(e?.details || e?.message || e);
-      if (i >= attempts || !/rate limit/i.test(msg)) throw e;
-      console.log(`  rate limited, waiting 65s (attempt ${i + 1}/${attempts})`);
-      await sleep(65000);
+      // Rate limits and the occasional dropped connection are both worth
+      // waiting out; anything else is a real failure and should surface.
+      if (i >= attempts || !/rate limit|fetch failed|ETIMEDOUT|ECONNRESET/i.test(msg)) throw e;
+      const wait = /per hour/i.test(msg) ? 300000 : 65000;
+      console.log(`  rate limited, waiting ${wait / 1000}s (attempt ${i + 1}/${attempts})`);
+      await sleep(wait);
     }
   }
 }
@@ -171,6 +174,14 @@ for (const s of SCENARIOS) {
 
   console.log("  adjudicating (jury runs, this takes a while)…");
   await send(asClient, "adjudicate", [id]);
+
+  // Adjudication leaves the split provisional so an appeal is still possible.
+  // Nobody is appealing these, so close the window and pay out.
+  const judged = await rpc(() => asClient.readContract({ address: CONTRACT, functionName: "get_job", args: [id] }));
+  if (judged.status === "JUDGED") {
+    console.log(`  verdict  ${judged.band}  score ${judged.score} — releasing escrow`);
+    await send(asClient, "release", [id]);
+  }
 
   const job = await rpc(() => asClient.readContract({ address: CONTRACT, functionName: "get_job", args: [id] }));
   console.log(`  verdict  ${job.band}  score ${job.score}  status ${job.status}`);

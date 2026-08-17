@@ -6,7 +6,7 @@ import { BandChip, ScoreRule } from "./Bits";
 import JuryPanel from "./JuryPanel";
 
 const BAND_COPY: Record<string, string> = {
-  PASS: "Cleared the buyer's threshold. Fee and stake released to the translator.",
+  PASS: "Cleared the buyer's threshold. Fee and stake go to the translator.",
   REVISE: "Below the threshold but repairable. The segment list below is the repair list.",
   PARTIAL: "Usable but short of what was commissioned. Split settlement.",
   FAIL: "Rejected. Fee refunded, half the stake forfeited.",
@@ -27,7 +27,11 @@ export default function Verdict({ job }: { job: Job }) {
       <div className="verdict">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
           <div>
-            <div className="micro faint">VERDICT — ROUND {job.round}{job.round > 1 ? " (APPEALED)" : ""}</div>
+            <div className="micro faint">
+              VERDICT — ROUND {job.round}
+              {job.round > 1 ? " (APPEALED)" : ""}
+              {job.status === "JUDGED" ? " · PROVISIONAL, ESCROW NOT YET RELEASED" : ""}
+            </div>
             <div className="big-score mono" style={{ marginTop: 10 }}>{job.score}</div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -42,11 +46,11 @@ export default function Verdict({ job }: { job: Job }) {
 
         <div style={{ display: "flex", gap: 40, marginTop: 22, flexWrap: "wrap" }}>
           <div>
-            <div className="micro faint">TO TRANSLATOR</div>
+            <div className="micro faint">{job.status === "JUDGED" ? "DUE TO TRANSLATOR" : "TO TRANSLATOR"}</div>
             <div className="h3 mono" style={{ marginTop: 6 }}>{fmtGen(job.paid_translator)} GEN</div>
           </div>
           <div>
-            <div className="micro faint">TO BUYER</div>
+            <div className="micro faint">{job.status === "JUDGED" ? "DUE TO BUYER" : "TO BUYER"}</div>
             <div className="h3 mono" style={{ marginTop: 6 }}>{fmtGen(job.paid_client)} GEN</div>
           </div>
           {ev.machine_translation_likelihood > 0 && (

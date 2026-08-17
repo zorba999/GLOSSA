@@ -26,6 +26,22 @@ export function sameAddr(a?: string | null, b?: string | null): boolean {
   return Boolean(a && b && a.toLowerCase() === b.toLowerCase());
 }
 
+/**
+ * Chain errors arrive as viem's internal prose, which tells a visitor nothing.
+ * The two they will actually hit are the studio rate limit and a plain outage.
+ */
+export function friendlyError(e: any): string {
+  const raw = String(e?.details ?? e?.shortMessage ?? e?.message ?? e ?? "");
+  if (/rate limit/i.test(raw)) {
+    return "The studio network is rate-limiting reads (30 a minute, 500 an hour, shared across everyone on your connection). Wait a moment and try again.";
+  }
+  if (/failed to fetch|fetch failed|network|ETIMEDOUT|ECONNRESET/i.test(raw)) {
+    return "Cannot reach the GenLayer network right now. Check your connection, or wait out the studio rate limit.";
+  }
+  if (/insufficient/i.test(raw)) return "Not enough GEN in this wallet. Use the faucet in the wallet menu.";
+  return raw.replace(/\s*Version:\s*viem@[\d.]+\s*/i, "").trim() || "Something went wrong.";
+}
+
 export function when(iso?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);

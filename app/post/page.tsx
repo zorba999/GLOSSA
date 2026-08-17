@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/lib/wallet";
 import { listJobs, waitAccepted, write } from "@/lib/glossa";
-import { GEN, fmtGen } from "@/lib/format";
+import { GEN, fmtGen, friendlyError } from "@/lib/format";
 import { Mark } from "@/components/Bits";
 
 const PRESET = {
@@ -78,7 +78,7 @@ export default function PostJob() {
       await w.refreshBalance();
       router.push(mine ? `/job/${mine.id}` : "/");
     } catch (e: any) {
-      setErr(e?.shortMessage ?? e?.message ?? String(e));
+      setErr(friendlyError(e));
       setBusy(null);
     }
   };

@@ -44,6 +44,7 @@ STATUS_OPEN = "OPEN"
 STATUS_CLAIMED = "CLAIMED"
 STATUS_DELIVERED = "DELIVERED"
 STATUS_REVISION = "REVISION"
+STATUS_JUDGED = "JUDGED"
 STATUS_SETTLED = "SETTLED"
 STATUS_CANCELLED = "CANCELLED"
 
@@ -52,6 +53,25 @@ BAND_REVISE = "REVISE"
 BAND_PARTIAL = "PARTIAL"
 BAND_FAIL = "FAIL"
 BAND_FRAUD = "FRAUD"
+
+
+@gl.evm.contract_interface
+class Payee:
+    """
+    Native-token payouts go through the EVM layer, not the message layer.
+
+    `gl.get_contract_at(addr).emit_transfer(...)` posts a message that the
+    recipient is expected to execute; against an externally owned account there
+    is nothing to execute, so the emitted transaction errors and the value never
+    lands. An `EthSend` with empty calldata is a plain value transfer and does
+    reach a wallet. Verified on chain before this contract relied on it.
+    """
+
+    class View:
+        pass
+
+    class Write:
+        pass
 
 
 @allow_storage
@@ -544,16 +564,38 @@ class Glossa(gl.Contract):
             job.status = STATUS_REVISION
             return
 
-        self._settle(job, score, band)
+        # The verdict decides the split, but the money stays in escrow until the
+        # appeal window closes. Paying out first would make the appeal a fiction:
+        # a second panel cannot redistribute tokens that have already left, and
+        # nothing can claw them back out of a wallet.
+        self._provision(job, score, band)
+
+        # A job that has already used its appeal has no window left to wait for.
+        if job.round >= 2:
+            self._disburse(job)
+
+    @gl.public.write
+    def release(self, job_id: int) -> None:
+        """
+        Close the appeal window and pay out. Callable by anyone, so neither party
+        can strand the other's money by simply never showing up.
+        """
+        job = self._job(job_id)
+        if job.status != STATUS_JUDGED:
+            raise gl.vm.UserError(ERROR_EXPECTED + " nothing is awaiting release")
+        self._disburse(job)
 
     @gl.public.write.payable
     def appeal(self, job_id: int) -> None:
         """
-        Buy a second jury. The bond is what stops appeals from being free, and
-        the losing side funds the winner's inconvenience.
+        Buy a second jury while the money is still in escrow. The bond is what
+        stops appeals from being free, and the losing side funds the winner's
+        inconvenience.
         """
         job = self._job(job_id)
-        if job.status != STATUS_SETTLED:
+        if job.status != STATUS_JUDGED:
+            if job.status == STATUS_SETTLED:
+                raise gl.vm.UserError(ERROR_EXPECTED + " the appeal window has closed")
             raise gl.vm.UserError(ERROR_EXPECTED + " there is no verdict to appeal")
         if job.round >= 2:
             raise gl.vm.UserError(ERROR_EXPECTED + " this job already had its appeal")
@@ -585,7 +627,8 @@ class Glossa(gl.Contract):
             return BAND_REVISE
         return BAND_PARTIAL
 
-    def _settle(self, job: Job, score: int, band: str) -> None:
+    def _provision(self, job: Job, score: int, band: str) -> None:
+        """Work out the split and record it. No tokens move here."""
         price = int(job.price)
         stake = int(job.stake)
 
@@ -618,11 +661,18 @@ class Glossa(gl.Contract):
 
         job.paid_translator = u256(to_translator)
         job.paid_client = u256(to_client)
+        job.status = STATUS_JUDGED
+
+    def _disburse(self, job: Job) -> None:
+        """Release what the verdict provisioned, and only then close the job."""
+        to_translator = int(job.paid_translator)
+        to_client = int(job.paid_client)
+
         job.status = STATUS_SETTLED
 
         translator = job.translator
         self.rep_jobs[translator] = u256(self.rep_jobs.get(translator, u256(0)) + 1)
-        self.rep_score_sum[translator] = u256(self.rep_score_sum.get(translator, u256(0)) + score)
+        self.rep_score_sum[translator] = u256(self.rep_score_sum.get(translator, u256(0)) + int(job.score))
         self.total_settled = u256(self.total_settled + to_translator + to_client)
 
         if to_translator > 0:
@@ -652,7 +702,7 @@ class Glossa(gl.Contract):
 
     def _pay(self, to: Address, amount: u256) -> None:
         if amount > 0:
-            gl.get_contract_at(to).emit_transfer(value=amount, on="finalized")
+            Payee(to).emit_transfer(value=amount)
 
     def _job(self, job_id: int) -> Job:
         key = u256(int(job_id))

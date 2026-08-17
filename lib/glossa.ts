@@ -2,7 +2,7 @@ import type { GenLayerClient } from "genlayer-js/types";
 import { CONTRACT_ADDRESS, IS_STUDIO } from "./chains";
 
 export type Band = "PASS" | "REVISE" | "PARTIAL" | "FAIL" | "FRAUD" | "";
-export type Status = "OPEN" | "CLAIMED" | "DELIVERED" | "REVISION" | "SETTLED" | "CANCELLED";
+export type Status = "OPEN" | "CLAIMED" | "DELIVERED" | "REVISION" | "JUDGED" | "SETTLED" | "CANCELLED";
 
 export type JobSummary = {
   id: number;
@@ -148,6 +148,8 @@ export type Juror = {
   vote: string;
   model: string;
   provider: string;
+  address: string;
+  stake: string;
   execution: string;
 };
 
@@ -155,11 +157,18 @@ export type JuryRecord = { hash: string; status: string; jurors: Juror[] };
 
 function juror(entry: any, role: Juror["role"]): Juror {
   const cfg = entry?.node_config ?? {};
+  // A validator's model sits under primary_model, and may be a concrete name
+  // ("openai/gpt-5.4") or a routing policy ("policy:prd-gpt-5-4") that picks one
+  // at call time. Either is worth showing: the panel's value is that its members
+  // are not all the same model.
+  const primary = cfg.primary_model ?? {};
   return {
     role,
     vote: String(entry?.vote ?? "—"),
-    model: String(cfg.model ?? cfg.provider ?? "—"),
-    provider: String(cfg.provider ?? ""),
+    model: String(primary.model ?? cfg.model ?? "unknown"),
+    provider: String(primary.provider ?? cfg.provider ?? ""),
+    address: String(cfg.address ?? ""),
+    stake: String(cfg.stake ?? ""),
     execution: String(entry?.execution_result ?? ""),
   };
 }

@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useWallet } from "@/lib/wallet";
 import { usePoll } from "@/lib/poll";
 import { getJob, translatorCard, waitAccepted, write, type Job } from "@/lib/glossa";
-import { fmtGen, sameAddr, short, toBig, when } from "@/lib/format";
+import { fmtGen, friendlyError, sameAddr, short, toBig, when } from "@/lib/format";
 import { BandChip, Mark } from "@/components/Bits";
 import Verdict from "@/components/Verdict";
 
@@ -35,7 +35,7 @@ export default function JobPage() {
         setCard(await translatorCard(w.readClient, j.translator));
       }
     } catch (e: any) {
-      setErr(e?.message ?? String(e));
+      setErr(friendlyError(e));
     }
   }, [w.readClient, id]);
 
@@ -59,7 +59,7 @@ export default function JobPage() {
       await load();
       await w.refreshBalance();
     } catch (e: any) {
-      setErr(e?.shortMessage ?? e?.message ?? String(e));
+      setErr(friendlyError(e));
     } finally {
       setBusy(null);
     }
@@ -75,8 +75,11 @@ export default function JobPage() {
 
   const settled = job.status === "SETTLED";
   const awaitingVerdict = job.status === "DELIVERED";
-  // A REVISE verdict is not the end of the job, but its segment list is exactly
-  // what the translator needs in front of them while they repair it.
+  // Verdict reached, money still in escrow: the window in which the losing side
+  // can buy a second panel.
+  const inAppealWindow = job.status === "JUDGED";
+  // A REVISE verdict is not the end of the job either, but its segment list is
+  // exactly what the translator needs in front of them while they repair it.
   const judged = Boolean(job.band);
 
   return (
@@ -203,14 +206,25 @@ export default function JobPage() {
         {judged && (
           <>
             <Verdict job={job} />
-            {settled && (isClient || isTranslator) && job.round < 2 && (
-              <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 26 }}>
-                <button className="btn" disabled={!!busy} onClick={() => act("Filing…", "appeal", [job.id], bondDue)}>
-                  Appeal · bond {fmtGen(bondDue)} GEN
-                </button>
-                <span className="micro faint">
-                  A SECOND PANEL RE-JUDGES FROM THE SAME MATERIAL. LOSE, AND THE BOND GOES TO THE OTHER SIDE.
-                </span>
+            {inAppealWindow && (
+              <div style={{ marginTop: 26 }}>
+                <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+                  <button className="btn btn-solid" disabled={!!busy} onClick={() => act("Releasing…", "release", [job.id])}>
+                    Release the escrow
+                  </button>
+                  {(isClient || isTranslator) && job.round < 2 && (
+                    <button className="btn" disabled={!!busy} onClick={() => act("Filing…", "appeal", [job.id], bondDue)}>
+                      Appeal · bond {fmtGen(bondDue)} GEN
+                    </button>
+                  )}
+                </div>
+                <p className="micro faint" style={{ marginTop: 14, lineHeight: 2, letterSpacing: "0.08em" }}>
+                  THE SPLIT IS DECIDED BUT THE TOKENS HAVE NOT MOVED. EITHER PARTY MAY BUY A SECOND PANEL FIRST —
+                  <br />
+                  AN APPEAL AFTER PAYOUT WOULD BE A FICTION, SINCE NOTHING CAN BE PULLED BACK OUT OF A WALLET.
+                  <br />
+                  ANYONE MAY RELEASE, SO NEITHER SIDE CAN STRAND THE OTHER&rsquo;S MONEY BY NOT SHOWING UP.
+                </p>
               </div>
             )}
           </>
