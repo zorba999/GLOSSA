@@ -29,8 +29,18 @@ Object.assign(env, process.env);
 
 const CHAINS = { studionet, localnet, "testnet-asimov": testnetAsimov, "testnet-bradbury": testnetBradbury };
 const chain = CHAINS[env.NEXT_PUBLIC_GENLAYER_NETWORK || "studionet"];
-const CONTRACT = env.NEXT_PUBLIC_GLOSSA_ADDRESS;
-if (!CONTRACT) throw new Error("NEXT_PUBLIC_GLOSSA_ADDRESS missing — deploy first");
+
+// The suite deploys its own instance with a short appeal interval rather than
+// running against whatever is configured. That keeps it reproducible, keeps the
+// demo contract's history clean, and — the reason it matters here — lets the
+// interval actually elapse inside a single run.
+//
+// It has to outlast one adjudication, though. The window is measured from the
+// verdict transaction's own datetime, and a panel plus finalisation takes a
+// couple of minutes on studionet; at 90s the window had already closed by the
+// time the suite got around to testing that it was open.
+const APPEAL_WINDOW = 420;
+let CONTRACT;
 
 const GEN = 10n ** 18n;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -155,8 +165,21 @@ const price = 2n * GEN;
 const stake = price / 5n;
 const bond = price / 4n;
 
-console.log(`contract   ${CONTRACT}`);
+if (!env.DEPLOYER_PRIVATE_KEY) throw new Error("DEPLOYER_PRIVATE_KEY missing from .env.local");
+const deployer = createAccount(env.DEPLOYER_PRIVATE_KEY);
+const asDeployer = createClient({ chain, account: deployer });
+const contractCode = readFileSync(resolve(root, "contracts/glossa.py"), "utf8");
+
 console.log(`network    ${chain.name}`);
+console.log(`deploying a fresh instance with a ${APPEAL_WINDOW}s appeal window...`);
+const deployHash = await rpc(() => asDeployer.deployContract({ code: contractCode, args: [APPEAL_WINDOW] }));
+const deployReceipt = await rpc(() =>
+  asDeployer.waitForTransactionReceipt({ hash: deployHash, status: "FINALIZED", retries: 90, interval: 8000 }),
+);
+CONTRACT = deployReceipt?.data?.contract_address;
+if (!CONTRACT) throw new Error("deploy produced no contract address");
+
+console.log(`contract   ${CONTRACT}`);
 console.log(`buyer      ${buyer.address}`);
 console.log(`translator ${translator.address}`);
 console.log(`outsider   ${outsider.address}\n`);
@@ -273,11 +296,33 @@ check("validators were polled", validators.length > 0, `${validators.length} val
 check("at least one validator agreed", validators.some((v) => v.vote === "agree"), JSON.stringify(validators.map((v) => v.vote)));
 
 /* ================================================================== */
-console.log("\n── 4. release of escrow");
+console.log("");
+console.log("-- 4. the appeal interval, then release");
+
+const leftNow = Number(b.appeal_seconds_left ?? 0);
+check(
+  "an interval is actually running",
+  leftNow > 0 && leftNow <= APPEAL_WINDOW,
+  `${leftNow}s left of ${APPEAL_WINDOW}s — if this is 0, adjudication outlasted the window`,
+);
+
+await sendExpectingRejection(asOutsider, "release", [jobB]);
+b = await getJob(jobB);
+check("release is refused while the window is open", b.status === "JUDGED", `status ${b.status}`);
+check("still nothing paid out", (await balance(translator.address)) === tBefore);
+
+// Wait out whatever the contract says is left rather than the nominal window:
+// time has already been running since the verdict transaction.
+const remaining = Number((await getJob(jobB)).appeal_seconds_left ?? 0);
+console.log(`  waiting out the remaining ${remaining}s of the window...`);
+await sleep((remaining + 20) * 1000);
+
+b = await getJob(jobB);
+check("the window reports itself closed", Number(b.appeal_seconds_left ?? 0) === 0, `${b.appeal_seconds_left}s left`);
 
 await send(asOutsider, "release", [jobB]);
 b = await getJob(jobB);
-check("anyone may release", b.status === "SETTLED", `status ${b.status}`);
+check("anyone may release once it has elapsed", b.status === "SETTLED", `status ${b.status}`);
 
 await sleep(10000);
 const tAfter = await balance(translator.address);

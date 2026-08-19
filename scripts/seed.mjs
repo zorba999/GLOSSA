@@ -175,11 +175,15 @@ for (const s of SCENARIOS) {
   console.log("  adjudicating (jury runs, this takes a while)…");
   await send(asClient, "adjudicate", [id]);
 
-  // Adjudication leaves the split provisional so an appeal is still possible.
-  // Nobody is appealing these, so close the window and pay out.
+  // Adjudication leaves the split provisional so an appeal is still possible,
+  // and release will not run until the interval closes. Nobody is appealing
+  // these, so both sides waive — which is the escape hatch the contract exists
+  // to offer a pair who simply agree.
   const judged = await rpc(() => asClient.readContract({ address: CONTRACT, functionName: "get_job", args: [id] }));
   if (judged.status === "JUDGED") {
-    console.log(`  verdict  ${judged.band}  score ${judged.score} — releasing escrow`);
+    console.log(`  verdict  ${judged.band}  score ${judged.score} — waiving appeal, releasing escrow`);
+    await send(asClient, "waive_appeal", [id]);
+    await send(asTranslator, "waive_appeal", [id]);
     await send(asClient, "release", [id]);
   }
 

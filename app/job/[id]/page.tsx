@@ -81,6 +81,16 @@ export default function JobPage() {
   // A REVISE verdict is not the end of the job either, but its segment list is
   // exactly what the translator needs in front of them while they repair it.
   const judged = Boolean(job.band);
+  const secondsLeft = Number(job.appeal_seconds_left ?? 0);
+  const bothWaived = Boolean(job.client_waived && job.translator_waived);
+  const releasable = bothWaived || secondsLeft === 0;
+  const myWaiver = isClient ? job.client_waived : isTranslator ? job.translator_waived : true;
+  const countdown =
+    secondsLeft > 3600
+      ? `${Math.ceil(secondsLeft / 3600)}h`
+      : secondsLeft > 60
+        ? `${Math.ceil(secondsLeft / 60)}m`
+        : `${secondsLeft}s`;
 
   return (
     <>
@@ -209,21 +219,36 @@ export default function JobPage() {
             {inAppealWindow && (
               <div style={{ marginTop: 26 }}>
                 <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-                  <button className="btn btn-solid" disabled={!!busy} onClick={() => act("Releasing…", "release", [job.id])}>
-                    Release the escrow
+                  <button
+                    className="btn btn-solid"
+                    disabled={!!busy || !releasable}
+                    onClick={() => act("Releasing…", "release", [job.id])}
+                  >
+                    {releasable ? "Release the escrow" : `Release in ${countdown}`}
                   </button>
                   {(isClient || isTranslator) && job.round < 2 && (
                     <button className="btn" disabled={!!busy} onClick={() => act("Filing…", "appeal", [job.id], bondDue)}>
                       Appeal · bond {fmtGen(bondDue)} GEN
                     </button>
                   )}
+                  {(isClient || isTranslator) && !myWaiver && (
+                    <button className="btn" disabled={!!busy} onClick={() => act("Waiving…", "waive_appeal", [job.id])}>
+                      Waive my appeal
+                    </button>
+                  )}
                 </div>
-                <p className="micro faint" style={{ marginTop: 14, lineHeight: 2, letterSpacing: "0.08em" }}>
-                  THE SPLIT IS DECIDED BUT THE TOKENS HAVE NOT MOVED. EITHER PARTY MAY BUY A SECOND PANEL FIRST —
+
+                <div className="micro faint" style={{ marginTop: 14, lineHeight: 2, letterSpacing: "0.08em" }}>
+                  BUYER {job.client_waived ? "HAS WAIVED" : "MAY STILL APPEAL"} · TRANSLATOR{" "}
+                  {job.translator_waived ? "HAS WAIVED" : "MAY STILL APPEAL"}
+                </div>
+
+                <p className="micro faint" style={{ marginTop: 10, lineHeight: 2, letterSpacing: "0.08em" }}>
+                  THE SPLIT IS DECIDED BUT THE TOKENS HAVE NOT MOVED. THE INTERVAL RUNS FIRST —
                   <br />
                   AN APPEAL AFTER PAYOUT WOULD BE A FICTION, SINCE NOTHING CAN BE PULLED BACK OUT OF A WALLET.
                   <br />
-                  ANYONE MAY RELEASE, SO NEITHER SIDE CAN STRAND THE OTHER&rsquo;S MONEY BY NOT SHOWING UP.
+                  BOTH SIDES CAN WAIVE TO END IT EARLY, AND ANYONE MAY RELEASE ONCE IT CLOSES.
                 </p>
               </div>
             )}

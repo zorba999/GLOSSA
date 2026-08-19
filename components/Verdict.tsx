@@ -11,6 +11,8 @@ const BAND_COPY: Record<string, string> = {
   PARTIAL: "Usable but short of what was commissioned. Split settlement.",
   FAIL: "Rejected. Fee refunded, half the stake forfeited.",
   FRAUD: "Manipulation or machine output passed off as work. Fee refunded, whole stake forfeited.",
+  BAD_BRIEF:
+    "The buyer's own brief carried instructions aimed at the adjudicator. They poisoned the instrument the work was judged by, so the fee goes to the translator.",
 };
 
 const SEVERITY_ORDER = ["critical", "major", "minor"];
@@ -62,7 +64,18 @@ export default function Verdict({ job }: { job: Job }) {
         </div>
       </div>
 
-      {ev.injection_attempt && (
+      {ev.brief_injection && (
+        <div className="verdict chip-hatch">
+          <div className="micro" style={{ marginBottom: 8 }}>MANIPULATION FOUND IN THE BRIEF</div>
+          <p style={{ maxWidth: "56ch", margin: 0 }}>
+            The buyer wrote text addressed to the reviewing system into the register, audience or glossary — the very
+            terms the translator was held to. The panel reports that separately from anything found in the delivery, so
+            the contract can settle against whichever side reached for the thumb.
+          </p>
+        </div>
+      )}
+
+      {ev.injection_attempt && !ev.brief_injection && (
         <div className="verdict chip-hatch">
           <div className="micro" style={{ marginBottom: 8 }}>MANIPULATION DETECTED</div>
           <p style={{ maxWidth: "56ch", margin: 0 }}>

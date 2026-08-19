@@ -1,7 +1,7 @@
 import type { GenLayerClient } from "genlayer-js/types";
 import { CONTRACT_ADDRESS, IS_STUDIO } from "./chains";
 
-export type Band = "PASS" | "REVISE" | "PARTIAL" | "FAIL" | "FRAUD" | "";
+export type Band = "PASS" | "REVISE" | "PARTIAL" | "FAIL" | "FRAUD" | "BAD_BRIEF" | "";
 export type Status = "OPEN" | "CLAIMED" | "DELIVERED" | "REVISION" | "JUDGED" | "SETTLED" | "CANCELLED";
 
 export type JobSummary = {
@@ -21,6 +21,8 @@ export type JobSummary = {
   created_at: string;
   judged_at: string;
   appellant: string;
+  first_score: number;
+  first_band: Band;
   source_preview?: string;
 };
 
@@ -35,10 +37,14 @@ export type Job = JobSummary & {
   appeal_bond: string;
   paid_translator: string;
   paid_client: string;
+  client_waived: boolean;
+  translator_waived: boolean;
+  appeal_seconds_left: number;
 };
 
 export type Evidence = {
   segments: { quote: string; issue: string; severity: string }[];
+  brief_injection: boolean;
   confirmed_omissions: string[];
   back_translation: string;
   machine_translation_likelihood: number;
@@ -62,13 +68,14 @@ export function parseEvidence(raw: string): Evidence {
     const e = JSON.parse(raw || "{}");
     return {
       segments: Array.isArray(e.segments) ? e.segments : [],
+      brief_injection: Boolean(e.brief_injection),
       confirmed_omissions: Array.isArray(e.confirmed_omissions) ? e.confirmed_omissions : [],
       back_translation: e.back_translation || "",
       machine_translation_likelihood: Number(e.machine_translation_likelihood || 0),
       injection_attempt: Boolean(e.injection_attempt),
     };
   } catch {
-    return { segments: [], confirmed_omissions: [], back_translation: "", machine_translation_likelihood: 0, injection_attempt: false };
+    return { segments: [], brief_injection: false, confirmed_omissions: [], back_translation: "", machine_translation_likelihood: 0, injection_attempt: false };
   }
 }
 

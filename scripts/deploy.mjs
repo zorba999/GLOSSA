@@ -27,6 +27,9 @@ function loadEnv() {
 const env = { ...loadEnv(), ...process.env };
 const CHAINS = { studionet, localnet, "testnet-asimov": testnetAsimov, "testnet-bradbury": testnetBradbury };
 const networkName = process.argv[2] || env.NEXT_PUBLIC_GENLAYER_NETWORK || "studionet";
+// Appeal interval in seconds. The contract's own default is 24h; override it
+// when you want a deployment whose window can be watched closing.
+const appealWindow = Number(process.argv[3] ?? env.APPEAL_WINDOW_SECONDS ?? 86400);
 const chain = CHAINS[networkName];
 
 if (!chain) throw new Error(`unknown network "${networkName}" (expected: ${Object.keys(CHAINS).join(", ")})`);
@@ -38,6 +41,7 @@ const code = readFileSync(resolve(root, "contracts/glossa.py"), "utf8");
 
 console.log(`network    ${chain.name} (${chain.id})`);
 console.log(`deployer   ${account.address}`);
+console.log(`appeal     ${appealWindow}s window`);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -55,7 +59,7 @@ async function rpc(fn, attempts = 5) {
   }
 }
 
-const txHash = await rpc(() => client.deployContract({ code, args: [] }));
+const txHash = await rpc(() => client.deployContract({ code, args: [appealWindow] }));
 console.log(`tx         ${txHash}`);
 
 const receipt = await rpc(() =>

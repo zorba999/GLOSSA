@@ -9,7 +9,9 @@
     "start": "next start",
     "deploy:contract": "node scripts/deploy.mjs",
     "seed": "node scripts/seed.mjs",
-    "lint:contract": "genvm-lint check contracts/glossa.py"
+    "lint:contract": "genvm-lint check contracts/glossa.py",
+    "test": "pytest tests/direct -q",
+    "test:onchain": "node scripts/test-onchain.mjs"
   },
   "dependencies": {
     "genlayer-js": "1.1.8",

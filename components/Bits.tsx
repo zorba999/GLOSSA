@@ -9,7 +9,7 @@ export function Mark({ n, label }: { n: string; label: string }) {
   );
 }
 
-const HATCHED: Band[] = ["FAIL", "FRAUD"];
+const HATCHED: Band[] = ["FAIL", "FRAUD", "BAD_BRIEF"];
 
 export function BandChip({ band, status }: { band?: Band; status?: string }) {
   if (band) {
