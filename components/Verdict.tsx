@@ -31,7 +31,7 @@ export default function Verdict({ job }: { job: Job }) {
           <div>
             <div className="micro faint">
               VERDICT — ROUND {job.round}
-              {job.round > 1 ? " (APPEALED)" : ""}
+              {job.appealed_band ? " (APPEALED)" : ""}
               {job.status === "JUDGED" ? " · PROVISIONAL, ESCROW NOT YET RELEASED" : ""}
             </div>
             <div className="big-score mono" style={{ marginTop: 10 }}>{job.score}</div>

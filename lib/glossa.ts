@@ -21,8 +21,8 @@ export type JobSummary = {
   created_at: string;
   judged_at: string;
   appellant: string;
-  first_score: number;
-  first_band: Band;
+  appealed_score: number;
+  appealed_band: Band;
   source_preview?: string;
 };
 

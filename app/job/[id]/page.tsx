@@ -85,6 +85,9 @@ export default function JobPage() {
   const bothWaived = Boolean(job.client_waived && job.translator_waived);
   const releasable = bothWaived || secondsLeft === 0;
   const myWaiver = isClient ? job.client_waived : isTranslator ? job.translator_waived : true;
+  // A revision advances the round too, so the round number cannot stand in for
+  // "the appeal has been used".
+  const appealSpent = job.appellant !== "0x0000000000000000000000000000000000000000";
   const countdown =
     secondsLeft > 3600
       ? `${Math.ceil(secondsLeft / 3600)}h`
@@ -226,7 +229,7 @@ export default function JobPage() {
                   >
                     {releasable ? "Release the escrow" : `Release in ${countdown}`}
                   </button>
-                  {(isClient || isTranslator) && job.round < 2 && (
+                  {(isClient || isTranslator) && !appealSpent && (
                     <button className="btn" disabled={!!busy} onClick={() => act("Filing…", "appeal", [job.id], bondDue)}>
                       Appeal · bond {fmtGen(bondDue)} GEN
                     </button>

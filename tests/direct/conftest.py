@@ -71,6 +71,13 @@ def verdict(score=90, injection=False, brief_injection=False, mt=10, omissions=N
     )
 
 
+def as_hex(addr) -> str:
+    """direct_* fixtures give raw bytes; contract views return checksummed hex."""
+    if isinstance(addr, (bytes, bytearray)):
+        return "0x" + bytes(addr).hex()
+    return str(addr).lower()
+
+
 def mock_panel(vm, response):
     """
     Answer any adjudication prompt with a fixed verdict.

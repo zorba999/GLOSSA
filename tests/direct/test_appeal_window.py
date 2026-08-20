@@ -89,7 +89,7 @@ def test_appeal_is_refused_once_the_window_has_closed(direct_vm, direct_deploy, 
     direct_vm.value = 0
 
 
-def test_first_verdict_survives_the_second_round(direct_vm, direct_deploy, direct_alice, direct_bob):
+def test_the_appealed_verdict_survives_the_second_round(direct_vm, direct_deploy, direct_alice, direct_bob):
     c = direct_deploy("contracts/glossa.py", WINDOW)
     job = judged_job(direct_vm, c, direct_alice, direct_bob, verdict(score=90))
     assert c.get_job(job)["band"] == "PASS"
@@ -106,9 +106,9 @@ def test_first_verdict_survives_the_second_round(direct_vm, direct_deploy, direc
     j = c.get_job(job)
     assert int(j["round"]) == 2
     assert int(j["score"]) == 30 and j["band"] == "FAIL"
-    # The record of what the first panel said is still there to settle against.
-    assert int(j["first_score"]) == 90
-    assert j["first_band"] == "PASS"
+    # The record of the verdict actually under challenge is still there.
+    assert int(j["appealed_score"]) == 90
+    assert j["appealed_band"] == "PASS"
 
 
 def test_a_successful_appeal_returns_the_bond_to_the_appellant(direct_vm, direct_deploy, direct_alice, direct_bob):
@@ -144,6 +144,6 @@ def test_a_failed_appeal_hands_the_bond_to_the_other_side(direct_vm, direct_depl
     c.adjudicate(job)
 
     j = c.get_job(job)
-    assert int(j["first_score"]) == 90
+    assert int(j["appealed_score"]) == 90
     assert int(j["paid_translator"]) == PRICE + STAKE + BOND
     assert int(j["paid_client"]) == 0
